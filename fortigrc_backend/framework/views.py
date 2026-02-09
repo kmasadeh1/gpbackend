@@ -29,11 +29,16 @@ class DashboardStatsView(APIView):
         in_progress = Assessment.objects.filter(status=Assessment.Status.IN_PROGRESS).count()
         non_compliant = Assessment.objects.filter(status=Assessment.Status.NON_COMPLIANT).count()
 
-        # Risk Stats
-        total_risks = Risk.objects.count()
-        high_risks = Risk.objects.filter(risk_score__gte=16).count()
-        medium_risks = Risk.objects.filter(risk_score__range=(9, 15)).count()
-        low_risks = Risk.objects.filter(risk_score__lte=8).count()
+        # Risk Stats (Active/Open Only)
+        active_risks = Risk.objects.filter(status=Risk.Status.OPEN)
+
+        total_risks = active_risks.count()
+        high_risks = active_risks.filter(risk_score__gte=16).count()
+        medium_risks = active_risks.filter(risk_score__range=(9, 15)).count()
+        low_risks = active_risks.filter(risk_score__lte=8).count()
+        
+        # Add a stat for mitigated risks to show progress
+        mitigated_risks = Risk.objects.filter(status=Risk.Status.MITIGATED).count()
 
         data = {
             "compliance": {
@@ -50,7 +55,8 @@ class DashboardStatsView(APIView):
                 "total_risks": total_risks,
                 "high_risks": high_risks,
                 "medium_risks": medium_risks,
-                "low_risks": low_risks
+                "low_risks": low_risks,
+                "mitigated": mitigated_risks # New field
             }
         }
         return Response(data)
@@ -62,13 +68,15 @@ class ExecutiveReportView(APIView):
         compliant_controls = Assessment.objects.filter(status=Assessment.Status.COMPLIANT).count()
         compliance_percentage = (compliant_controls / total_controls * 100) if total_controls > 0 else 0
 
-        # 2. Risk Summary
-        low_risks = Risk.objects.filter(risk_score__lte=8).count()
-        medium_risks = Risk.objects.filter(risk_score__range=(9, 15)).count()
-        high_risks = Risk.objects.filter(risk_score__gte=16).count()
+        # 2. Risk Summary (Active/Open Only)
+        active_risks = Risk.objects.filter(status=Risk.Status.OPEN)
 
-        # 3. Top 5 Risks
-        top_risks = Risk.objects.order_by('-risk_score')[:5]
+        low_risks = active_risks.filter(risk_score__lte=8).count()
+        medium_risks = active_risks.filter(risk_score__range=(9, 15)).count()
+        high_risks = active_risks.filter(risk_score__gte=16).count()
+
+        # 3. Top 5 Risks (Active Only)
+        top_risks = active_risks.order_by('-risk_score')[:5]
         top_risks_data = [
             {
                 "threat": risk.threat,

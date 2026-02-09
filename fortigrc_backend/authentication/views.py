@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .serializers import MyTokenObtainPairSerializer, RegisterSerializer, ChangePasswordSerializer
+from .serializers import MyTokenObtainPairSerializer, RegisterSerializer, ChangePasswordSerializer, UserProfileSerializer
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -29,3 +29,11 @@ class ChangePasswordView(APIView):
                 return Response({'detail': 'Password updated successfully'}, status=status.HTTP_200_OK)
             return Response({'error': 'Wrong password'}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class UserProfileView(generics.RetrieveUpdateAPIView):
+    permission_classes = (IsAuthenticated,)
+    serializer_class = UserProfileSerializer
+
+    def get_object(self):
+        # Return the currently authenticated user
+        return self.request.user
