@@ -7,6 +7,10 @@ class AssessmentViewSet(viewsets.ModelViewSet):
     serializer_class = AssessmentSerializer
 
 class EvidenceViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for viewing and editing evidence.
+    Includes parsers for handling file uploads.
+    """
     queryset = Evidence.objects.all()
     serializer_class = EvidenceSerializer
     parser_classes = (parsers.MultiPartParser, parsers.FormParser)

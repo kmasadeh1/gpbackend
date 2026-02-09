@@ -21,14 +21,6 @@ class DashboardStatsView(APIView):
         # Assessment Breakdown
         stats_not_started = Assessment.objects.filter(status=Assessment.Status.NOT_STARTED).count()
         # "Not Started" implicitly includes controls without assessments.
-        # However, if we assume 1:1, we can just say total - exists?
-        # Actually Assessment is OneToOne with Control. So if an assessment doesn't exist, it's effectively "Not Started".
-        # But for now, let's rely on the Assessment model existing or not.
-        # Requirement said: "Count of "Not Started" (Total Controls - Existing Assessments)"?
-        # Re-reading req: "Count of "Not Started" (Total Controls - Existing Assessments)."
-        # Wait, if Assessment is created only when someone starts it?
-        # Or do we create them all at once?
-        # If we assume we don't pre-create:
         assessments_count = Assessment.objects.count()
         implicit_not_started = total_controls - assessments_count
         explicit_not_started = Assessment.objects.filter(status=Assessment.Status.NOT_STARTED).count()
@@ -60,5 +52,53 @@ class DashboardStatsView(APIView):
                 "medium_risks": medium_risks,
                 "low_risks": low_risks
             }
+        }
+        return Response(data)
+
+class ExecutiveReportView(APIView):
+    def get(self, request):
+        # 1. Compliance Score
+        total_controls = Control.objects.count()
+        compliant_controls = Assessment.objects.filter(status=Assessment.Status.COMPLIANT).count()
+        compliance_percentage = (compliant_controls / total_controls * 100) if total_controls > 0 else 0
+
+        # 2. Risk Summary
+        low_risks = Risk.objects.filter(risk_score__lte=8).count()
+        medium_risks = Risk.objects.filter(risk_score__range=(9, 15)).count()
+        high_risks = Risk.objects.filter(risk_score__gte=16).count()
+
+        # 3. Top 5 Risks
+        top_risks = Risk.objects.order_by('-risk_score')[:5]
+        top_risks_data = [
+            {
+                "threat": risk.threat,
+                "asset_name": risk.asset.name, # Added asset name
+                "likelihood": risk.likelihood,
+                "impact": risk.impact,
+                "risk_score": risk.risk_score
+            }
+            for risk in top_risks
+        ]
+
+        # 4. Top 5 Compliance Gaps (Non-Compliant Assessments)
+        # Note: We can order by updated_at or similar to show recent issues, or just any
+        compliance_gaps = Assessment.objects.filter(status=Assessment.Status.NON_COMPLIANT)[:5]
+        compliance_gaps_data = [
+            {
+                "control_code": gap.control.code,
+                "control_title": gap.control.title
+            }
+            for gap in compliance_gaps
+        ]
+
+        data = {
+            "compliance_score": round(compliance_percentage, 2),
+            "risk_summary": {
+                "low": low_risks,
+                "medium": medium_risks,
+                "high": high_risks
+            },
+            "top_risks": top_risks_data,
+            "compliance_gaps": compliance_gaps_data
         }
         return Response(data)

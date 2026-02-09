@@ -1,53 +1,82 @@
 from django.core.management.base import BaseCommand
 from framework.models import Domain, SubDomain, Control
+from risks.models import Asset
 
 class Command(BaseCommand):
-    help = 'Seeds the database with initial JNCSF sample structure'
+    help = 'Seeds the database with initial JNCSF framework data and dummy assets.'
 
     def handle(self, *args, **options):
-        if Domain.objects.exists():
-            self.stdout.write(self.style.SUCCESS('Database already has data, skipping seed.'))
-            return
-
-        self.stdout.write('Seeding JNCSF data...')
-
-        # 1. Create Domain
-        gov = Domain.objects.create(
+        self.stdout.write(self.style.WARNING('Cleaning old data...'))
+        
+        # Clear existing data to prevent duplicates
+        # Order matters for deletion due to foreign keys if not relying on CASCADE
+        Control.objects.all().delete()
+        SubDomain.objects.all().delete()
+        Domain.objects.all().delete()
+        Asset.objects.all().delete()
+        
+        self.stdout.write(self.style.SUCCESS('Old data cleaned.'))
+        
+        self.stdout.write(self.style.WARNING('Seeding framework data...'))
+        
+        # Create 1 Domain
+        domain = Domain.objects.create(
             name="Governance & Strategy",
-            code="GOV",
-            description="Governance encompasses the system by which an organization is directed and controlled."
+            code="1",
+            description="Domain covering governance and strategic alignment."
         )
-
-        # 2. Create SubDomain
-        policy_sub = SubDomain.objects.create(
-            domain=gov,
-            name="Information Security Policies",
-            code="1-1"
+        
+        # Create 1 SubDomain linked to the Domain
+        sub_domain = SubDomain.objects.create(
+            domain=domain,
+            name="Governance",
+            code="1.1"
         )
-
-        # 3. Create Controls
-        controls_data = [
-            {
-                "code": "1-1-1",
-                "title": "Develop an InfoSec Policy",
-                "description": "Establish a set of policies for information security.",
-                "maturity_level": 1
-            },
-            {
-                "code": "1-1-2",
-                "title": "Review Policy Annually",
-                "description": "Review the policies at planned intervals or if significant changes occur.",
-                "maturity_level": 2
-            },
-            {
-                "code": "1-1-3",
-                "title": "Approve Policy",
-                "description": "Ensure the policy is approved by management.",
-                "maturity_level": 3
-            }
-        ]
-
-        for c_data in controls_data:
-            Control.objects.create(sub_domain=policy_sub, **c_data)
-
-        self.stdout.write(self.style.SUCCESS('Successfully seeded JNCSF sample data.'))
+        
+        # Create 3 Controls linked to the SubDomain
+        Control.objects.create(
+            sub_domain=sub_domain,
+            code="1.1.1",
+            title="Cybersecurity Strategy",
+            description="Establishment and maintenance of a cybersecurity strategy.",
+            maturity_level=1
+        )
+        Control.objects.create(
+            sub_domain=sub_domain,
+            code="1.1.2",
+            title="Roles and Responsibilities",
+            description="Definition and allocation of cybersecurity roles.",
+            maturity_level=1
+        )
+        Control.objects.create(
+            sub_domain=sub_domain,
+            code="1.1.3",
+            title="Legal and Regulatory Compliance",
+            description="Compliance with applicable legal and regulatory requirements.",
+            maturity_level=1
+        )
+        
+        self.stdout.write(self.style.SUCCESS('Framework seeded.'))
+        
+        self.stdout.write(self.style.WARNING('Seeding assets...'))
+        
+        # Create 3 Assets
+        # Note: Asset values are from choices in risks.models.Asset.Value
+        Asset.objects.create(
+            name="HR Database",
+            value=Asset.Value.HIGH,
+            description="Database containing sensitive employee information."
+        )
+        Asset.objects.create(
+            name="Corporate Website",
+            value=Asset.Value.MEDIUM,
+            description="Public facing corporate website."
+        )
+        Asset.objects.create(
+            name="Payment Gateway",
+            value=Asset.Value.HIGH,
+            description="External payment processing gateway integration."
+        )
+        
+        self.stdout.write(self.style.SUCCESS('Assets seeded.'))
+        self.stdout.write(self.style.SUCCESS('Database seeding completed successfully!'))
